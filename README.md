@@ -59,6 +59,8 @@ prompts and interrupts a reply on Ctrl+C.
 | `Interrupt`, `SetModel`, `SetPermissionMode`, `Control` | Control requests |
 | `MCPServer`, `Tool` | Go functions as MCP tools, served from this process (`mcp__<server>__<tool>`); a cancelled call cancels the handler's context |
 | `Options.CanUseTool` | Decide tool permissions in Go instead of a terminal prompt |
+| `AuthStatus` | How `claude` is signed in (`claude auth status`), without a request to the model |
+| `claudecodetest` | A scripted fake `claude` for your own tests: text, progress notes, tool calls through your MCP servers, interrupts; it logs what it saw |
 | Messages | `SystemMessage`, `AssistantMessage`, `UserMessage`, `StreamEvent` (with `Options.IncludePartialMessages`), `ResultMessage`, `RateLimitEvent`; unknown types arrive as `OtherMessage` with their raw JSON |
 | Options | System prompt, built-in tools, allowed and disallowed tools, model, effort, thinking display, turns and budget limits, sessions (`Resume`, `Continue`, `SessionID`, `ForkSession`), settings sources, external MCP servers, extra flags |
 
@@ -75,6 +77,20 @@ Anthropic's [terms for Claude Code](https://code.claude.com/docs/en/legal-and-co
 subscription for a person's own, ordinary use of Claude Code. A product or service built on this
 package and offered to other people must use API keys (or a cloud provider), and must not route
 other people's requests through your subscription. Check those terms for your use.
+
+## Testing your code
+
+```go
+func TestMain(m *testing.M) { claudecodetest.Main(); os.Exit(m.Run()) }
+
+func TestMyAgent(t *testing.T) {
+	opts, readLog := claudecodetest.Options(t, claudecodetest.Script{Turns: []claudecodetest.Turn{{
+		Steps: []claudecodetest.Step{{Text: "Adding it."}, {Server: "demo", Tool: "add", Input: json.RawMessage(`{"label":"API"}`)}},
+	}}})
+	opts.SDKServers = []*claudecode.MCPServer{myServer}
+	// … run your code with opts, then check readLog().Calls
+}
+```
 
 ## Tests
 

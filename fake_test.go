@@ -103,6 +103,19 @@ func (f *fake) slow() {
 }
 
 func fakeCLI(scenario string) int {
+	if len(os.Args) == 3 && os.Args[1] == "auth" && os.Args[2] == "status" {
+		in := os.Getenv("ANTHROPIC_API_KEY") == "" && scenario != "signed-out"
+		method := "claude.ai"
+		if os.Getenv("ANTHROPIC_API_KEY") != "" {
+			method = "api_key"
+		}
+		b, _ := json.Marshal(map[string]any{"loggedIn": in || method == "api_key", "authMethod": method, "apiProvider": "firstParty", "email": "someone@example.com"})
+		os.Stdout.Write(b)
+		if scenario == "signed-out" {
+			return 1
+		}
+		return 0
+	}
 	if p := os.Getenv("CLAUDE_CODE_GO_FAKE_ARGS"); p != "" {
 		b, _ := json.Marshal(map[string]any{"args": os.Args[1:], "apiKey": os.Getenv("ANTHROPIC_API_KEY"), "entrypoint": os.Getenv("CLAUDE_CODE_ENTRYPOINT")})
 		_ = os.WriteFile(p, b, 0o644)

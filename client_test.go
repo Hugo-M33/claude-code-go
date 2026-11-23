@@ -273,6 +273,23 @@ func TestProcessFailure(t *testing.T) {
 	}
 }
 
+func TestAuthStatus(t *testing.T) {
+	t.Setenv("ANTHROPIC_API_KEY", "sk-test")
+	opts, _ := fakeOptions(t, "echo")
+	if a, err := AuthStatus(ctx(t), opts); err != nil || !a.LoggedIn || a.AuthMethod != "api_key" {
+		t.Fatalf("with a key: %+v %v", a, err)
+	}
+	opts.NoAPIKey = true
+	if a, err := AuthStatus(ctx(t), opts); err != nil || !a.LoggedIn || a.AuthMethod != "claude.ai" {
+		t.Fatalf("subscription: %+v %v", a, err)
+	}
+	out, _ := fakeOptions(t, "signed-out")
+	out.NoAPIKey = true
+	if a, err := AuthStatus(ctx(t), out); err != nil || a.LoggedIn {
+		t.Fatalf("signed out: %+v %v", a, err)
+	}
+}
+
 func TestCLINotFound(t *testing.T) {
 	_, err := Connect(ctx(t), Options{CLIPath: filepath.Join(t.TempDir(), "no-claude-here")})
 	var nf *CLINotFoundError
