@@ -55,7 +55,8 @@ type Step struct {
 	DelayMS int             `json:"delayMs,omitempty"`
 }
 
-// Log is what the fake saw and did.
+// Log is what the fake saw and did: the command line and environment of the last process it
+// ran as, and every prompt and call over all of them.
 type Log struct {
 	Args    []string          `json:"args"`
 	Env     map[string]string `json:"env"`
@@ -144,6 +145,11 @@ func run(path string) int {
 		}
 		return 0
 	}
+	// Prompts and calls accumulate over the processes a test starts (one per session, or per
+	// turn): the n-th prompt the fake receives, in any process, plays Turns[n].
+	if prev, err := os.ReadFile(f.logPath); err == nil {
+		_ = json.Unmarshal(prev, &f.log)
+	}
 	f.log.Args = os.Args[1:]
 	f.log.Env = map[string]string{"ANTHROPIC_API_KEY": os.Getenv("ANTHROPIC_API_KEY"), "CLAUDE_CODE_ENTRYPOINT": os.Getenv("CLAUDE_CODE_ENTRYPOINT")}
 	f.save()
@@ -163,7 +169,6 @@ func run(path string) int {
 		}
 	}
 	go f.read()
-	turn := 0
 	for m := range f.inbox {
 		switch m["type"] {
 		case "control_request":
@@ -176,6 +181,7 @@ func run(path string) int {
 			msg, _ := m["message"].(map[string]any)
 			b, _ := json.Marshal(msg["content"])
 			f.lmu.Lock()
+			turn := len(f.log.Prompts)
 			f.log.Prompts = append(f.log.Prompts, b)
 			f.lmu.Unlock()
 			f.save()
@@ -183,7 +189,6 @@ func run(path string) int {
 			if turn < len(f.script.Turns) {
 				t = f.script.Turns[turn]
 			}
-			turn++
 			f.play(t)
 		}
 	}

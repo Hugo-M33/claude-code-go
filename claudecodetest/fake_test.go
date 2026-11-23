@@ -78,6 +78,22 @@ func TestScriptedTurns(t *testing.T) {
 	if !strings.Contains(strings.Join(l.Args, " "), "--input-format stream-json") {
 		t.Fatalf("args %v", l.Args)
 	}
+	// A new process plays the next turn, and the log keeps growing.
+	c.Close()
+	opts.Resume = "s-42"
+	var third string
+	for m, err := range claudecode.Query(ctx, "third", opts) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r, ok := m.(*claudecode.ResultMessage); ok {
+			third = r.Result
+		}
+	}
+	l = readLog()
+	if third != "" || len(l.Prompts) != 3 || !strings.Contains(strings.Join(l.Args, " "), "--resume s-42") {
+		t.Fatalf("third turn %q, log %d prompts, args %v", third, len(l.Prompts), l.Args)
+	}
 }
 
 func TestAuthAndExit(t *testing.T) {
